@@ -27,6 +27,7 @@ from . import compilers
 from ..mesonlib import (
     EnvironmentException, MesonException, version_compare, Popen_safe, listify,
     for_windows, for_darwin, for_cygwin, for_haiku, for_openbsd,
+    darwin_get_object_archs
 )
 from .c_function_attributes import C_FUNC_ATTRIBUTES
 
@@ -979,10 +980,27 @@ class CCompiler(Compiler):
         return [f.as_posix()]
 
     @staticmethod
-    def _get_file_from_list(files: List[str]) -> str:
+    def _get_file_from_list(env, files: List[str]) -> str:
+        '''
+        We just check whether the library exists. We can't do a link check
+        because the library might have unresolved symbols that require other
+        libraries. On macOS we check if the library matches our target
+        architecture.
+        '''
+        if not env.machines.host.is_darwin():
+            for f in files:
+                if os.path.isfile(f):
+                    return f
+        # Run `lipo` and check if the library supports the arch we want
         for f in files:
-            if os.path.isfile(f):
+            if not os.path.isfile(f):
+                continue
+            archs = darwin_get_object_archs(f)
+            if archs and env.machines.host.cpu_family in archs:
                 return f
+            else:
+                mlog.debug('Rejected {}, supports {} but need {}'
+                           .format(f, archs, env.machines.host.cpu_family))
         return None
 
     @functools.lru_cache()
@@ -1023,10 +1041,7 @@ class CCompiler(Compiler):
                 trial = self._get_trials_from_pattern(p, d, libname)
                 if not trial:
                     continue
-                # We just check whether the library exists. We can't do a link
-                # check because the library might have unresolved symbols that
-                # require other libraries.
-                trial = self._get_file_from_list(trial)
+                trial = self._get_file_from_list(env, trial)
                 if not trial:
                     continue
                 return [trial]
