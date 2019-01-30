@@ -59,6 +59,7 @@ class CCompiler(Compiler):
     library_dirs_cache = {}
     program_dirs_cache = {}
     find_library_cache = {}
+    find_framework_cache = {}
     internal_libs = gnu_compiler_internal_libs
 
     @staticmethod
@@ -1051,6 +1052,36 @@ class CCompiler(Compiler):
     def find_library(self, libname, env, extra_dirs, libtype='default'):
         code = 'int main(int argc, char **argv) { return 0; }'
         return self.find_library_impl(libname, env, extra_dirs, code, libtype)
+
+    def find_framework_real(self, name, env, extra_dirs, allow_system):
+        code = 'int main(int argc, char **argv) { return 0; }'
+        link_args = []
+        for d in extra_dirs:
+            link_args += ['-F' + d]
+        extra_args = [] if allow_system else ['-Z', '-L/usr/lib']
+        link_args += ['-framework', name]
+        if self.links(code, env, extra_args=(extra_args + link_args)):
+            return link_args
+
+    def find_framework_impl(self, name, env, extra_dirs, allow_system):
+        if isinstance(extra_dirs, str):
+            extra_dirs = [extra_dirs]
+        key = (tuple(self.exelist), name, tuple(extra_dirs), allow_system)
+        if key in self.find_framework_cache:
+            value = self.find_framework_cache[key]
+        else:
+            value = self.find_framework_real(name, env, extra_dirs, allow_system)
+            self.find_framework_cache[key] = value
+        if value is None:
+            return None
+        return value[:]
+
+    def find_framework(self, name, env, extra_dirs, allow_system=True):
+        '''
+        Finds the framework with the specified name, and returns link args for
+        the same or returns None when the framework is not found.
+        '''
+        return self.find_framework_impl(name, env, extra_dirs, allow_system)
 
     def thread_flags(self, env):
         if for_haiku(self.is_cross, env) or for_darwin(self.is_cross, env):

@@ -29,11 +29,14 @@ class AppleFrameworks(ExternalDependency):
         if not modules:
             raise DependencyException("AppleFrameworks dependency requires at least one module.")
         self.frameworks = modules
-        # FIXME: Use self.clib_compiler to check if the frameworks are available
+        self.is_found = True
         for f in self.frameworks:
-            self.link_args += ['-framework', f]
-
-        self.is_found = mesonlib.for_darwin(self.want_cross, self.env)
+            args = self.clib_compiler.find_framework(f, env, [])
+            if args is not None:
+                self.compile_args = args[0]
+                self.link_args = args[1]
+            else:
+                self.is_found = False
 
     def log_tried(self):
         return 'framework'
