@@ -3704,45 +3704,51 @@ different subdirectory.
                                                              timeout_multiplier=timeout_multiplier,
                                                              env=env)
 
-    def get_argdict_on_crossness(self, native_dict, cross_dict, kwargs):
-        for_native = kwargs.get('native', not self.environment.is_cross_build())
+    def get_argdicts_on_crossness(self, native_dict, cross_dict, kwargs):
+        for_native = kwargs.get('native', None)
+        if for_native is None:
+            return [native_dict, cross_dict]
         if not isinstance(for_native, bool):
             raise InterpreterException('Keyword native must be a boolean.')
         if for_native:
-            return native_dict
+            return [native_dict]
         else:
-            return cross_dict
+            return [cross_dict]
 
     @permittedKwargs(permitted_kwargs['add_global_arguments'])
     @stringArgs
     def func_add_global_arguments(self, node, args, kwargs):
-        argdict = self.get_argdict_on_crossness(self.build.global_args,
+        argdicts = self.get_argdicts_on_crossness(self.build.global_args,
                                                 self.build.cross_global_args,
                                                 kwargs)
-        self.add_global_arguments(node, argdict, args, kwargs)
+        for argdict in argdicts:
+            self.add_global_arguments(node, argdict, args, kwargs)
 
     @permittedKwargs(permitted_kwargs['add_global_link_arguments'])
     @stringArgs
     def func_add_global_link_arguments(self, node, args, kwargs):
-        argdict = self.get_argdict_on_crossness(self.build.global_link_args,
+        argdicts = self.get_argdicts_on_crossness(self.build.global_link_args,
                                                 self.build.cross_global_link_args,
                                                 kwargs)
-        self.add_global_arguments(node, argdict, args, kwargs)
+        for argdict in argdicts:
+            self.add_global_arguments(node, argdict, args, kwargs)
 
     @permittedKwargs(permitted_kwargs['add_project_arguments'])
     @stringArgs
     def func_add_project_arguments(self, node, args, kwargs):
-        argdict = self.get_argdict_on_crossness(self.build.projects_args,
+        argdicts = self.get_argdicts_on_crossness(self.build.projects_args,
                                                 self.build.cross_projects_args,
                                                 kwargs)
-        self.add_project_arguments(node, argdict, args, kwargs)
+        for argdict in argdicts:
+            self.add_project_arguments(node, argdict, args, kwargs)
 
     @permittedKwargs(permitted_kwargs['add_project_link_arguments'])
     @stringArgs
     def func_add_project_link_arguments(self, node, args, kwargs):
-        argdict = self.get_argdict_on_crossness(self.build.projects_link_args,
+        argdicts = self.get_argdicts_on_crossness(self.build.projects_link_args,
                                                 self.build.cross_projects_link_args, kwargs)
-        self.add_project_arguments(node, argdict, args, kwargs)
+        for argdict in argdicts:
+            self.add_project_arguments(node, argdict, args, kwargs)
 
     def add_global_arguments(self, node, argsdict, args, kwargs):
         if self.is_subproject():
